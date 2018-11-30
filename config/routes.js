@@ -3,7 +3,7 @@ const axios = require('axios');
 const bcrypt = require('bcryptjs');
 const db = require('../database/dbConfig');
 
-const { authenticate } = require('./middlewares');
+const { authenticate, generateToken } = require('./middlewares');
 
 module.exports = server => {
   server.post('/api/register', register);
@@ -18,16 +18,28 @@ function register(req, res) {
   creds.password = hash;
   db('users')
     .insert(creds)
-    .then(id => {
-      res.status(201).json(id);
+    .then(ids => {
+      res.status(201).json(ids);
     })
-    .catch(err => {
-      res.status(500).json(err);
-    })
+    .catch(err => res.status(500).json(err));
 }
 
 function login(req, res) {
   // implement user login
+  const creds = req.body;
+  db('users')
+    .where({ username: creds.username })
+    .first()
+    .then(user => {
+      if (user && bcrypt.compareSync(creds.password,user.password)) {
+        const token = generateToken(user);
+        res.status(200).json({ message: 'Loggin Successful', token})
+      } 
+      else {
+        res.status(401).json({ message: 'Incorrect Username or Password'})
+      }
+    })
+    .catch(err => res.status(500).json(err));
 }
 
 function getJokes(req, res) {
